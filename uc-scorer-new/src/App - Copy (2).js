@@ -7,16 +7,17 @@ import {
   TextInput,
   StatusBar,
   ScrollView,
-  FlatList,
-  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Platform } from "react-native";
 import { Audio } from "expo-av";
+
+// ✅ Use ONE import line for all safe-area items you need
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import styles, { COLORS } from "./styles";
-import { initDb, saveMatch, listMatches } from "./db";
 
+// ✅ Single App component that wraps RootApp with Provider + SafeAreaView
 export default function App() {
   return (
     <SafeAreaProvider>
@@ -28,7 +29,9 @@ export default function App() {
 }
 
 function RootApp() {
-  // Names & scores (A–D)
+  const insets = useSafeAreaInsets();
+
+  // Team names & scores (A–D)
   const [teamA, setTeamA] = useState("Team A");
   const [teamB, setTeamB] = useState("Team B");
   const [teamC, setTeamC] = useState("Team C");
@@ -41,45 +44,45 @@ function RootApp() {
 
   const [activeTab, setActiveTab] = useState("score");
 
-  // Events + History (DB)
-  const [events, setEvents] = useState([]); // [{t, team, type, delta}]
-  const [matches, setMatches] = useState([]);
-  const [dbReady, setDbReady] = useState(false);
-
-  // Measured heights (for floating middle layer)
+  // Measured heights
   const [headerH, setHeaderH] = useState(0);
   const [tabsH, setTabsH] = useState(0);
   const [toolbarH, setToolbarH] = useState(0);
   const [footerH, setFooterH] = useState(0);
 
-  // Init DB & load history on mount
-  useEffect(() => {
-    (async () => {
-      try {
-        await initDb();
-        setDbReady(true);
-        const rows = await listMatches();
-        setMatches(rows || []);
-      } catch (e) {
-        console.warn("DB init/list error", e);
-      }
-    })();
-  }, []);
+  const add = (setter) => (v) => setter((s) => Math.max(0, s + v));
+  const resetScores = () => {
+    setScoreA(0);
+    setScoreB(0);
+    setScoreC(0);
+    setScoreD(0);
+  };
+  const undo = () => {
+    /* TODO: hook up real undo stack */
+  };
+  const saveMatch = () => {
+    // TODO: hook into db.js and then reset
+    resetScores();
+  };
 
-  // Sound: preload applause + reuse
+  // --- Sound: preload applause and reuse it ---
   const applauseRef = useRef(null);
+
   useEffect(() => {
     let mounted = true;
+
     (async () => {
       try {
         const { sound } = await Audio.Sound.createAsync(
-          require("./assets/applause.wav")
+          // If your App.js is not at project root, adjust path accordingly (e.g. "../assets/sounds/applause.wav")
+          require("./assets/sounds/applause.wav")
         );
         if (mounted) applauseRef.current = sound;
       } catch (e) {
         console.warn("Failed to load applause.wav", e);
       }
     })();
+
     return () => {
       mounted = false;
       if (applauseRef.current) {
@@ -91,75 +94,21 @@ function RootApp() {
 
   const playApplause = async () => {
     try {
-      if (applauseRef.current) await applauseRef.current.replayAsync();
+      if (applauseRef.current) {
+        await applauseRef.current.replayAsync();
+      }
     } catch (e) {
       console.warn("Applause play error", e);
     }
   };
 
-  // Helpers
-  const add = (setter) => (v) => setter((s) => Math.max(0, s + v));
-  const resetScores = () => {
-    setScoreA(0); setScoreB(0); setScoreC(0); setScoreD(0);
-  };
-
-  const addEvent = (team, type, delta) => {
-    if (delta > 0) playApplause();
-    const t = new Date().toISOString();
-    setEvents(prev => [{ t, team, type, delta }, ...prev]);
-    // Apply to the correct team
-    if (team === "A") setScoreA(s => Math.max(0, s + delta));
-    if (team === "B") setScoreB(s => Math.max(0, s + delta));
-    if (team === "C") setScoreC(s => Math.max(0, s + delta));
-    if (team === "D") setScoreD(s => Math.max(0, s + delta));
-  };
-
-  const undo = () => {
-    setEvents(prev => {
-      if (prev.length === 0) return prev;
-      const [last, ...rest] = prev; // we prepend new events
-      // revert score
-      const d = -last.delta;
-      if (last.team === "A") setScoreA(s => Math.max(0, s + d));
-      if (last.team === "B") setScoreB(s => Math.max(0, s + d));
-      if (last.team === "C") setScoreC(s => Math.max(0, s + d));
-      if (last.team === "D") setScoreD(s => Math.max(0, s + d));
-      return rest;
-    });
-  };
-
-  const saveCurrent = async () => {
-    if (!dbReady) return;
-    // Combine A+C vs B+D — keeps current UI expectation
-    const outA = scoreA + scoreC;
-    const outB = scoreB + scoreD;
-    try {
-      await saveMatch({
-        teamA, teamB,
-        scoreA: outA,
-        scoreB: outB,
-        events: [...events].reverse() // oldest → newest for storage
-      });
-      const rows = await listMatches();
-      setMatches(rows || []);
-      Alert.alert("Saved", "Match saved to local database.");
-      // reset
-      resetScores();
-      setEvents([]);
-      setActiveTab("history");
-    } catch (e) {
-      console.warn("Save error", e);
-      Alert.alert("Save failed", "Could not save match.");
-    }
-  };
-
-  // Floating window bounds
+  // Floating window bounds (respect footer height + safe area)
   const topY = headerH + tabsH + toolbarH;
   const bottomY = footerH;
 
   return (
     <View style={styles.root}>
-      {/* Background gradient */}
+      {/* Full-screen bright gradient background */}
       <LinearGradient
         colors={[COLORS.bgGradTop, COLORS.bgGradMid, COLORS.bgGradBottom]}
         locations={[0, 0.55, 1]}
@@ -170,7 +119,7 @@ function RootApp() {
 
       <StatusBar barStyle="light-content" />
 
-      {/* Header */}
+      {/* Header (padding top uses safe area inside component) */}
       <HeaderBar
         title="University Challenge"
         subtitle="Your starter for 10"
@@ -184,30 +133,54 @@ function RootApp() {
         onLayout={(e) => setTabsH(e.nativeEvent.layout.height)}
       />
 
-      {/* Toolbar */}
+      {/* Toolbar (Undo / Reset) */}
       <Toolbar
         onUndo={undo}
         onReset={resetScores}
         onLayout={(e) => setToolbarH(e.nativeEvent.layout.height)}
       />
 
-      {/* Middle layer */}
-      <View style={[styles.middleLayer, { top: topY, bottom: bottomY }]} pointerEvents="box-none">
+      {/* Floating middle layer (scrollable content) */}
+      <View
+        style={[styles.middleLayer, { top: topY, bottom: bottomY }]}
+        pointerEvents="box-none"
+      >
         {activeTab === "score" && (
-          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Row 1: A & B */}
             <ScoreRow>
               <TeamPanel
-                label="Team A" name={teamA} setName={setTeamA} score={scoreA}
-                onPlus10={() => addEvent("A", "starter", 10)}
-                onPlus5={() => addEvent("A", "bonus", 5)}
-                onMinus5={() => addEvent("A", "penalty", -5)}
+                label="Team A"
+                name={teamA}
+                setName={setTeamA}
+                score={scoreA}
+                onPlus10={() => {
+                  playApplause();
+                  add(setScoreA)(10);
+                }}
+                onPlus5={() => {
+                  playApplause();
+                  add(setScoreA)(5);
+                }}
+                onMinus5={() => add(setScoreA)(-5)}
               />
               <TeamPanel
-                label="Team B" name={teamB} setName={setTeamB} score={scoreB}
-                onPlus10={() => addEvent("B", "starter", 10)}
-                onPlus5={() => addEvent("B", "bonus", 5)}
-                onMinus5={() => addEvent("B", "penalty", -5)}
+                label="Team B"
+                name={teamB}
+                setName={setTeamB}
+                score={scoreB}
+                onPlus10={() => {
+                  playApplause();
+                  add(setScoreB)(10);
+                }}
+                onPlus5={() => {
+                  playApplause();
+                  add(setScoreB)(5);
+                }}
+                onMinus5={() => add(setScoreB)(-5)}
               />
             </ScoreRow>
 
@@ -215,16 +188,34 @@ function RootApp() {
             <View style={{ height: 20 }} />
             <ScoreRow>
               <TeamPanel
-                label="Team C" name={teamC} setName={setTeamC} score={scoreC}
-                onPlus10={() => addEvent("C", "starter", 10)}
-                onPlus5={() => addEvent("C", "bonus", 5)}
-                onMinus5={() => addEvent("C", "penalty", -5)}
+                label="Team C"
+                name={teamC}
+                setName={setTeamC}
+                score={scoreC}
+                onPlus10={() => {
+                  playApplause();
+                  add(setScoreC)(10);
+                }}
+                onPlus5={() => {
+                  playApplause();
+                  add(setScoreC)(5);
+                }}
+                onMinus5={() => add(setScoreC)(-5)}
               />
               <TeamPanel
-                label="Team D" name={teamD} setName={setTeamD} score={scoreD}
-                onPlus10={() => addEvent("D", "starter", 10)}
-                onPlus5={() => addEvent("D", "bonus", 5)}
-                onMinus5={() => addEvent("D", "penalty", -5)}
+                label="Team D"
+                name={teamD}
+                setName={setTeamD}
+                score={scoreD}
+                onPlus10={() => {
+                  playApplause();
+                  add(setScoreD)(10);
+                }}
+                onPlus5={() => {
+                  playApplause();
+                  add(setScoreD)(5);
+                }}
+                onMinus5={() => add(setScoreD)(-5)}
               />
             </ScoreRow>
 
@@ -232,56 +223,15 @@ function RootApp() {
             <View style={{ height: 24 }} />
           </ScrollView>
         )}
-
-        {activeTab === "events" && (
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            <View style={styles.teamCol}>
-              {events.length === 0 ? (
-                <Text style={{ color: "#111" }}>No events yet.</Text>
-              ) : (
-                events.map((item, idx) => (
-                  <View key={idx} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 12 }}>
-                    <Text style={{ color: "#111" }}>
-                      {new Date(item.t).toLocaleTimeString()}
-                    </Text>
-                    <Text style={{ fontWeight: "800", color: "#111" }}>
-                      {item.team} — {item.type} {item.delta > 0 ? `+${item.delta}` : item.delta}
-                    </Text>
-                  </View>
-                ))
-              )}
-            </View>
-          </ScrollView>
-        )}
-
-        {activeTab === "history" && (
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            <View style={styles.teamCol}>
-              {matches.length === 0 ? (
-                <Text style={{ color: "#111" }}>No matches saved yet.</Text>
-              ) : (
-                matches.map((m) => (
-                  <View key={m.id} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 12 }}>
-                    <View>
-                      <Text style={{ color: "#111" }}>{new Date(m.created_at).toLocaleString()}</Text>
-                      <Text style={{ color: "#555" }}>{m.team_a} vs {m.team_b}</Text>
-                    </View>
-                    <Text style={{ fontSize: 18, fontWeight: "900", color: COLORS.accent }}>
-                      {m.score_a}–{m.score_b}
-                    </Text>
-                  </View>
-                ))
-              )}
-            </View>
-          </ScrollView>
-        )}
+        {activeTab === "events" && <Placeholder label="Events coming soon" />}
+        {activeTab === "history" && <Placeholder label="History coming soon" />}
       </View>
 
-      {/* Save Match pinned */}
+      {/* Save Match pinned; respects bottom inset */}
       <SaveMatchBar
         onLayout={(e) => setFooterH(e.nativeEvent.layout.height)}
-        onSave={saveCurrent}
-        scoreA={scoreA + scoreC}
+        onSave={saveMatch}
+        scoreA={scoreA + scoreC} // example: aggregate left vs right if you want
         scoreB={scoreB + scoreD}
       />
     </View>
@@ -291,6 +241,7 @@ function RootApp() {
 /* --- UI Components --- */
 
 function HeaderBar({ title, subtitle, onLayout }) {
+  const insets = useSafeAreaInsets();
   return (
     <View onLayout={onLayout} style={styles.headerWrap}>
       <LinearGradient
@@ -346,7 +297,15 @@ function ScoreRow({ children }) {
   return <View style={styles.teamRow}>{children}</View>;
 }
 
-function TeamPanel({ label, name, setName, score, onPlus10, onPlus5, onMinus5 }) {
+function TeamPanel({
+  label,
+  name,
+  setName,
+  score,
+  onPlus10,
+  onPlus5,
+  onMinus5,
+}) {
   return (
     <View style={styles.teamCol}>
       <View style={styles.teamHeader}>
@@ -364,7 +323,7 @@ function TeamPanel({ label, name, setName, score, onPlus10, onPlus5, onMinus5 })
         <Text style={styles.scoreLabel}>Score</Text>
         <Text style={styles.scoreText}>{score}</Text>
       </View>
-      <View className="btnCol" style={styles.btnCol}>
+      <View style={styles.btnCol}>
         <PillBtn label="+10 Starter" onPress={onPlus10} />
         <PillBtn label="+5 Bonus" onPress={onPlus5} />
         <PillBtn label="-5" onPress={onMinus5} />
@@ -381,11 +340,20 @@ function PillBtn({ label, onPress }) {
   );
 }
 
+function Placeholder({ label }) {
+  return (
+    <View style={styles.placeholder}>
+      <Text style={styles.placeholderText}>{label}</Text>
+    </View>
+  );
+}
+
+// Ensure SafeAreaView is imported from 'react-native-safe-area-context'
 function SaveMatchBar({ onLayout, onSave, scoreA, scoreB }) {
   return (
     <SafeAreaView
       edges={["bottom"]}
-      onLayout={onLayout}
+      onLayout={onLayout} // ← pass the event straight through
       style={styles.saveBarWrap}
       pointerEvents="box-none"
     >

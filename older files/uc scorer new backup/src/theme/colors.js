@@ -1,0 +1,1 @@
+export const COLORS = { accent: '#F9DABA' };
