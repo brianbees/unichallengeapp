@@ -1,0 +1,5 @@
+export const SPACING = { xs: 8, sm: 12, md: 16, lg: 24, xl: 32 };
+export const RADII   = { pill: 999, card: 24, input: 18 };
+export const ELEVATION = { bg: 0, middle: 10, header: 30, footer: 40 };
+export const HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 };
+export const Z = { bg: 0, middle: 10, header: 30, footer: 40 };

@@ -1,0 +1,18 @@
+import { Alert } from 'react-native';
+
+const MESSAGES = {
+  SAVE_FAILED: { title: 'Save failed', message: 'Couldn\'t save the match. Please try again.' },
+  DB_UNAVAILABLE: { title: 'Database unavailable', message: 'Please restart the app.' },
+  UNKNOWN: { title: 'Something went wrong', message: 'Please try again.' },
+};
+
+export function showError(code = 'UNKNOWN') {
+  const { title, message } = MESSAGES[code] || MESSAGES.UNKNOWN;
+  Alert.alert(title, message);
+}
+
+export function logError(err, context = '') {
+  if (__DEV__) {
+    console.error('[ERR]', context, err);
+  }
+}
