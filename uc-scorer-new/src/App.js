@@ -6,17 +6,16 @@ import {
   TextInput,
   StatusBar,
   ScrollView,
+  StyleSheet,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-
-// ✅ Use ONE import line for all safe-area items you need
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import styles from "./styles";
-import { COLORS } from "@/theme/colors";
+import styles from "./styles";              // default export
+import { COLORS } from "./theme/colors";    // colors
 
 
-// ✅ Single App component that wraps RootApp with Provider + SafeAreaView
+
 export default function App() {
   return (
     <SafeAreaProvider>
@@ -26,8 +25,6 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
-
-
 
 function RootApp() {
   const insets = useSafeAreaInsets();
@@ -55,45 +52,38 @@ function RootApp() {
   const resetScores = () => {
     setScoreA(0); setScoreB(0); setScoreC(0); setScoreD(0);
   };
-  const undo = () => { /* TODO: hook up real undo stack */ };
-  const saveMatch = () => {
-    // TODO: hook into db.js and then reset
-    resetScores();
-  };
+  const undo = () => {};
+  const saveMatch = () => { resetScores(); };
 
   // Floating window bounds (respect footer height + safe area)
   const topY = headerH + tabsH + toolbarH;
   const bottomY = footerH + insets.bottom;
 
   return (
-    <View style={styles.root}>
-      {/* Full-screen bright gradient background */}
-      <LinearGradient
-        colors={[COLORS.bgGradTop, COLORS.bgGradMid, COLORS.bgGradBottom]}
-        locations={[0, 0.55, 1]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={styles.bg}
+    <View style={styles.root || { flex: 1 }}>
+      {/* Full-screen gradient background */}
+     <LinearGradient
+  colors={[COLORS.backgroundTop, COLORS.backgroundBottom]}
+  start={{ x: 0, y: 0 }}
+  end={{ x: 0, y: 1 }}
+  style={StyleSheet.absoluteFillObject}
+/>
 
-      />
 
       <StatusBar barStyle="light-content" />
 
-      {/* Header (padding top uses safe area inside component) */}
       <HeaderBar
         title="University Challenge"
         subtitle="Your starter for 10"
         onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}
       />
 
-      {/* Tabs */}
       <TopTabs
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onLayout={(e) => setTabsH(e.nativeEvent.layout.height)}
       />
 
-      {/* Toolbar (Undo / Reset) */}
       <Toolbar
         onUndo={undo}
         onReset={resetScores}
@@ -101,10 +91,9 @@ function RootApp() {
       />
 
       {/* Floating middle layer (scrollable content) */}
-      <View style={[styles.middleLayer, { top: topY, bottom: bottomY }]} pointerEvents="box-none">
+      <View style={[styles.middleLayer || { position: "absolute", left: 0, right: 0 }, { top: topY, bottom: bottomY }]} pointerEvents="box-none">
         {activeTab === "score" && (
-          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-            {/* Row 1: A & B */}
+          <ScrollView contentContainerStyle={styles.scrollContent || { padding: 16 }} keyboardShouldPersistTaps="handled">
             <ScoreRow>
               <TeamPanel
                 label="Team A"
@@ -124,7 +113,6 @@ function RootApp() {
               />
             </ScoreRow>
 
-            {/* Row 2: C & D */}
             <View style={{ height: 16 }} />
             <ScoreRow>
               <TeamPanel
@@ -145,7 +133,6 @@ function RootApp() {
               />
             </ScoreRow>
 
-            {/* Spacer so last row clears the pinned footer */}
             <View style={{ height: 24 }} />
           </ScrollView>
         )}
@@ -153,34 +140,29 @@ function RootApp() {
         {activeTab === "history" && <Placeholder label="History coming soon" />}
       </View>
 
-      {/* Save Match pinned; respects bottom inset */}
       <SaveMatchBar
         onLayout={(e) => setFooterH(e.nativeEvent.layout.height)}
         onSave={saveMatch}
-        scoreA={scoreA + scoreC} // example: aggregate left vs right if you want
+        scoreA={scoreA + scoreC}
         scoreB={scoreB + scoreD}
       />
     </View>
   );
 }
 
-/* --- UI Components --- */
+/* --- UI Components (unchanged) --- */
 
 function HeaderBar({ title, subtitle, onLayout }) {
-  const insets = useSafeAreaInsets();
   return (
-   <View onLayout={onLayout} style={styles.headerWrap}>
+    <View onLayout={onLayout} style={styles.headerWrap || {}}>
       <LinearGradient
-        colors={[COLORS.headerGradStart, COLORS.headerGradEnd]}
+        colors={[COLORS.backgroundTop, COLORS.backgroundBottom]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.headerGrad}
-
-
-
+        style={styles.headerGrad || { padding: 16 }}
       >
-        <Text style={styles.headerTitle}>{title}</Text>
-        <Text style={styles.headerSub}>{subtitle}</Text>
+        <Text style={styles.headerTitle || { color: "#fff", fontSize: 20 }}>{title}</Text>
+        <Text style={styles.headerSub || { color: "#ccc" }}>{subtitle}</Text>
       </LinearGradient>
     </View>
   );
@@ -191,13 +173,13 @@ function TopTabs({ activeTab, setActiveTab, onLayout }) {
     <TouchableOpacity
       accessibilityRole="button"
       onPress={() => setActiveTab(id)}
-      style={[styles.tabBtn, activeTab === id && styles.tabBtnActive]}
+      style={[styles.tabBtn || {}, activeTab === id && (styles.tabBtnActive || {})]}
     >
-      <Text style={[styles.tabText, activeTab === id && styles.tabTextActive]}>{label}</Text>
+      <Text style={[styles.tabText || {}, activeTab === id && (styles.tabTextActive || {})]}>{label}</Text>
     </TouchableOpacity>
   );
   return (
-    <View onLayout={onLayout} style={styles.tabsRow}>
+    <View onLayout={onLayout} style={styles.tabsRow || { flexDirection: "row", padding: 8, gap: 8 }}>
       <Item id="score" label="Score" />
       <Item id="events" label="Events" />
       <Item id="history" label="History" />
@@ -207,42 +189,42 @@ function TopTabs({ activeTab, setActiveTab, onLayout }) {
 
 function Toolbar({ onUndo, onReset, onLayout }) {
   return (
-    <View onLayout={onLayout} style={styles.toolbarRow}>
-      <TouchableOpacity onPress={onUndo} style={styles.toolBtn}>
-        <Text style={styles.toolBtnIcon}>↩︎</Text>
-        <Text style={styles.toolBtnText}>Undo</Text>
+    <View onLayout={onLayout} style={styles.toolbarRow || { flexDirection: "row", gap: 12, padding: 8 }}>
+      <TouchableOpacity onPress={onUndo} style={styles.toolBtn || { padding: 8, backgroundColor: "#222", borderRadius: 8 }}>
+        <Text style={styles.toolBtnIcon || { color: "#bbb" }}>↩︎</Text>
+        <Text style={styles.toolBtnText || { color: "#fff" }}>Undo</Text>
       </TouchableOpacity>
-      <TouchableOpacity onPress={onReset} style={styles.toolBtn}>
-        <Text style={styles.toolBtnIcon}>⟳</Text>
-        <Text style={styles.toolBtnText}>Reset</Text>
+      <TouchableOpacity onPress={onReset} style={styles.toolBtn || { padding: 8, backgroundColor: "#222", borderRadius: 8 }}>
+        <Text style={styles.toolBtnIcon || { color: "#bbb" }}>⟳</Text>
+        <Text style={styles.toolBtnText || { color: "#fff" }}>Reset</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 function ScoreRow({ children }) {
-  return <View style={styles.teamRow}>{children}</View>;
+  return <View style={styles.teamRow || { flexDirection: "row", gap: 12 }}>{children}</View>;
 }
 
 function TeamPanel({ label, name, setName, score, onPlus10, onPlus5, onMinus5 }) {
   return (
-    <View style={styles.teamCol}>
-      <View style={styles.teamHeader}>
+    <View style={styles.teamCol || { flex: 1, gap: 12 }}>
+      <View style={styles.teamHeader || { backgroundColor: "#111", borderRadius: 12, padding: 12 }}>
         <TextInput
           value={name}
           onChangeText={setName}
-          style={styles.teamName}
+          style={styles.teamName || { color: "#fff", fontSize: 18, fontWeight: "600" }}
           returnKeyType="done"
           blurOnSubmit
           placeholder={label}
           placeholderTextColor="#2b2b2b"
         />
       </View>
-      <View style={styles.scoreCard}>
-        <Text style={styles.scoreLabel}>Score</Text>
-        <Text style={styles.scoreText}>{score}</Text>
+      <View style={styles.scoreCard || { backgroundColor: "#111", borderRadius: 12, padding: 16, alignItems: "center" }}>
+        <Text style={styles.scoreLabel || { color: "#bbb", marginBottom: 6 }}>Score</Text>
+        <Text style={styles.scoreText || { color: "#fff", fontSize: 32, fontWeight: "800" }}>{score}</Text>
       </View>
-      <View style={styles.btnCol}>
+      <View style={styles.btnCol || { gap: 8 }}>
         <PillBtn label="+10 Starter" onPress={onPlus10} />
         <PillBtn label="+5 Bonus" onPress={onPlus5} />
         <PillBtn label="-5" onPress={onMinus5} />
@@ -253,16 +235,16 @@ function TeamPanel({ label, name, setName, score, onPlus10, onPlus5, onMinus5 })
 
 function PillBtn({ label, onPress }) {
   return (
-    <TouchableOpacity onPress={onPress} style={styles.pillBtn}>
-      <Text style={styles.pillBtnText}>{label}</Text>
+    <TouchableOpacity onPress={onPress} style={styles.pillBtn || { backgroundColor: "#333", paddingVertical: 10, borderRadius: 999, alignItems: "center" }}>
+      <Text style={styles.pillBtnText || { color: "#fff", fontWeight: "600" }}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
 function Placeholder({ label }) {
   return (
-    <View style={styles.placeholder}>
-      <Text style={styles.placeholderText}>{label}</Text>
+    <View style={styles.placeholder || { backgroundColor: "#111", borderRadius: 12, padding: 24, alignItems: "center" }}>
+      <Text style={styles.placeholderText || { color: "#bbb" }}>{label}</Text>
     </View>
   );
 }
@@ -272,13 +254,13 @@ function SaveMatchBar({ onLayout, onSave, scoreA, scoreB }) {
   return (
     <View
       onLayout={onLayout}
-      style={[styles.saveBarWrap, { paddingBottom: 12 + insets.bottom }]}
+      style={[styles.saveBarWrap || { position: "absolute", left: 0, right: 0, bottom: 0 }, { paddingBottom: 12 + insets.bottom }]}
       pointerEvents="box-none"
     >
-      <View style={styles.saveBar}>
-        <Text style={styles.saveBarScore}>{scoreA} — {scoreB}</Text>
-        <TouchableOpacity onPress={onSave} style={styles.saveBtn}>
-          <Text style={styles.saveBtnText}>Save Match</Text>
+      <View style={styles.saveBar || { marginHorizontal: 16, backgroundColor: "#111", borderRadius: 999, paddingVertical: 12, paddingHorizontal: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <Text style={styles.saveBarScore || { color: "#fff", fontSize: 18, fontWeight: "700" }}>{scoreA} — {scoreB}</Text>
+        <TouchableOpacity onPress={onSave} style={styles.saveBtn || { backgroundColor: "#F9DABA", paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999 }}>
+          <Text style={styles.saveBtnText || { color: "#111", fontWeight: "800" }}>Save Match</Text>
         </TouchableOpacity>
       </View>
     </View>
