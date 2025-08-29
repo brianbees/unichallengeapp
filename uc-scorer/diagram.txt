@@ -1,0 +1,34 @@
+SafeAreaView
+│
+├── HeaderBar
+│     └── [Gradient bar: title + subtitle]
+│
+├── TopTabs
+│     └── [Score • Events • History pill buttons]
+│
+└── ScreenContent (depends on selected tab)
+      │
+      ├── ScoreScreen
+      │     ├── Toolbar
+      │     │     └── [“UC Scorer” title + Undo/Reset buttons]
+      │     │
+      │     ├── ScoreColumns (side-by-side cards)
+      │     │     ├── ScoreColumn (Team A)
+      │     │     │     ├── TeamNameInput
+      │     │     │     ├── ScoreTile
+      │     │     │     └── ScoringButtons (+10 / +5 / −5)
+      │     │     │
+      │     │     └── ScoreColumn (Team B)
+      │     │           ├── TeamNameInput
+      │     │           ├── ScoreTile
+      │     │           └── ScoringButtons
+      │     │
+      │     └── SaveBar
+      │           ├── Save Match (pill button)
+      │           └── Score summary text
+      │
+      ├── EventsScreen
+      │     ├── EventsList (card with FlatList of events)
+      │
+      └── HistoryScreen
+            ├── MatchesList (card with FlatList of saved matches)
